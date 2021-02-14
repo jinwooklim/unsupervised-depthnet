@@ -8,9 +8,9 @@ pixel_coords = None
 def set_id_grid(depth):
     global pixel_coords
     b, h, w = depth.size()
-    i_range = torch.arange(0, h, dtype=depth.dtype, device=depth.device).view(1, h, 1).expand(1,h,w)  # [1, H, W]
-    j_range = torch.arange(0, w, dtype=depth.dtype, device=depth.device).view(1, 1, w).expand(1,h,w)  # [1, H, W]
-    ones = torch.ones(1,h,w, dtype=depth.dtype, device=depth.device)
+    i_range = torch.arange(0, h, dtype=depth.dtype, device=depth.device).view(1, h, 1).expand(1, h, w)  # [1, H, W]
+    j_range = torch.arange(0, w, dtype=depth.dtype, device=depth.device).view(1, 1, w).expand(1, h, w)  # [1, H, W]
+    ones = torch.ones(1, h, w, dtype=depth.dtype, device=depth.device)
 
     pixel_coords = torch.stack((j_range, i_range, ones), dim=1)  # [1, 3, H, W]
 
@@ -27,16 +27,16 @@ def check_sizes(input, input_name, expected):
 def compensate_pose(matrices, ref_matrix):
     # check_sizes(matrices, 'matrices', 'BS34')
     # check_sizes(ref_matrix, 'reference matrix', 'B34')
-    translation_vectors = matrices[:,:,:,-1:] - ref_matrix[:,:,-1:].unsqueeze(1)
-    inverse_rot = ref_matrix[:,:,:-1].transpose(1,2).unsqueeze(1)
-    return inverse_rot @ torch.cat([matrices[:,:,:,:-1], translation_vectors], dim=-1)
+    translation_vectors = matrices[..., -1:] - ref_matrix[..., -1:].unsqueeze(1)
+    inverse_rot = ref_matrix[..., :-1].transpose(1, 2).unsqueeze(1)
+    return inverse_rot @ torch.cat([matrices[..., :-1], translation_vectors], dim=-1)
 
 
 @torch.jit.script
 def invert_mat(matrices):
     # check_sizes(matrices, 'matrices', 'BS34')
-    rot_matrices = matrices[:,:,:,:-1].transpose(2,3)
-    translation_vectors = - rot_matrices @ matrices[:,:,:,-1:]
+    rot_matrices = matrices[..., :-1].transpose(2, 3)
+    translation_vectors = - rot_matrices @ matrices[..., -1:]
     return(torch.cat([rot_matrices, translation_vectors], dim=-1))
 
 
@@ -72,7 +72,7 @@ def pixel2cam(depth):
     if (pixel_coords is None) or pixel_coords.size(2) < h:
         set_id_grid(depth)
     pixel_coords.type_as(depth)
-    cam_coords = pixel_coords[:,:,:h,:w].expand(b,3,h,w)*depth.unsqueeze(1)
+    cam_coords = pixel_coords[..., :h, :w].expand(b, 3, h, w) * depth.unsqueeze(1)
     return cam_coords.contiguous()
 
 
@@ -96,7 +96,7 @@ def cam2pixel(cam_coords):
     Y_norm = 2*(Y / Z)/(h-1) - 1  # Idem [B, H*W]
 
     pixel_coords = torch.stack([X_norm, Y_norm], dim=2)  # [B, H*W, 2]
-    return pixel_coords.view(b,h,w,2)
+    return pixel_coords.view(b, h, w, 2)
 
 
 @torch.jit.script
@@ -111,13 +111,13 @@ def euler2mat(angle):
         Rotation matrix corresponding to the euler angles -- size = [B, S, 3, 3]
     """
     B, S = angle.size()[:2]
-    x, y, z = angle[:,:,0], angle[:,:,1], angle[:,:,2]
+    x, y, z = angle[..., 0], angle[..., 1], angle[..., 2]
 
     cosz = torch.cos(z)
     sinz = torch.sin(z)
 
-    zeros = z.detach()*0
-    ones = zeros.detach()+1
+    zeros = z.detach() * 0
+    ones = zeros.detach() + 1
     zmat = torch.stack([cosz, -sinz, zeros,
                         sinz,  cosz, zeros,
                         zeros, zeros,  ones], dim=-1).view(B, S, 3, 3)
@@ -148,9 +148,9 @@ def quat2mat(quat):
     Returns:
         Rotation matrix corresponding to the quaternion -- size = [B, S, 3, 3]
     """
-    norm_quat = torch.cat([quat[:,:,:1].detach()*0 + 1, quat], dim=1)
-    norm_quat = norm_quat/norm_quat.norm(p=2, dim=-1, keepdim=True)
-    w, x, y, z = norm_quat[:,:,0], norm_quat[:,:,1], norm_quat[:,:,2], norm_quat[:,:,3]
+    norm_quat = torch.cat([quat[..., :1].detach() * 0 + 1, quat], dim=1)
+    norm_quat = norm_quat / norm_quat.norm(p=2, dim=-1, keepdim=True)
+    w, x, y, z = norm_quat[..., 0], norm_quat[..., 1], norm_quat[..., 2], norm_quat[..., 3]
 
     B, S = quat.size()[:2]
 

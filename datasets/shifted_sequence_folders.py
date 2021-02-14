@@ -72,11 +72,11 @@ class ShiftedSequenceFolder(data.Dataset):
             if self.with_pose_gt:
                 pose_file = scene/'poses.txt'
                 assert pose_file.isfile(), "cannot find ground truth pose file {}".format(pose_file)
-                poses = np.loadtxt(pose_file).astype(np.float32).reshape(-1,3,4)
+                poses = np.loadtxt(pose_file).astype(np.float32).reshape(-1, 3, 4)
                 poses_sequences.append(poses)
             img_sequences.append(imgs)
             sequence_index = len(img_sequences) - 1
-            intrinsics = np.loadtxt(scene/'cam.txt').astype(np.float32).reshape(3,3)
+            intrinsics = np.loadtxt(scene/'cam.txt').astype(np.float32).reshape(3, 3)
             for i in range(demi_length, len(imgs)-demi_length):
                 sample = {'intrinsics': intrinsics,
                           'tgt': i,
@@ -97,16 +97,16 @@ class ShiftedSequenceFolder(data.Dataset):
     def __getitem__(self, index):
         sample = self.samples[index]
         preprocessed_sample = {}
-        imgs = self.img_sequences[sample['sequence_index']]
+        imgs_paths = self.img_sequences[sample['sequence_index']]
         tgt_index = sample['tgt']
-        tgt_img = load_as_float(imgs[tgt_index])
+        tgt_img = load_as_float(imgs_paths[tgt_index])
         if self.with_depth_gt:
             tgt_depth = np.load(sample['depth'])
             preprocessed_sample['depth'] = tgt_depth
 
         try:
-            prior_imgs = [load_as_float(imgs[tgt_index + i]) for i in sample['prior_shifts']]
-            post_imgs = [load_as_float(imgs[tgt_index + i]) for i in sample['post_shifts']]
+            prior_imgs = [load_as_float(imgs_paths[tgt_index + i]) for i in sample['prior_shifts']]
+            post_imgs = [load_as_float(imgs_paths[tgt_index + i]) for i in sample['post_shifts']]
             imgs = prior_imgs + [tgt_img] + post_imgs
             if self.with_pose_gt:
                 poses = self.poses_sequences[sample['sequence_index']]
