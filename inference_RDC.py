@@ -4,7 +4,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from tqdm import tqdm
 import torch
 from torch.nn import functional as F
-from models import DepthNet, PoseNet
+from models import DepthNet
 from skimage.transform import resize
 from evaluation_toolkit.inference_toolkit import inferenceFramework
 from inverse_warp import inverse_rotate
@@ -12,7 +12,7 @@ from inverse_warp import inverse_rotate
 
 @torch.no_grad()
 def main():
-    parser = ArgumentParser(description='Example usage of Inference toolkit',
+    parser = ArgumentParser(description='Example usage of Inference toolkit for RDC. See https://github.com/ClementPinard/depth-dataset-builder',
                             formatter_class=ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--dataset_root', metavar='DIR', type=Path, required=True)
@@ -47,6 +47,11 @@ def main():
 
     for sample in tqdm(engine):
         tgt_img, latest_intrinsics, poses = sample.get_frame()
+        # TODO Here, we don't apply the Algotihm from 
+        # "Multi range Real-time depth inference from a monocular stabilized footage
+        # using a Fully Convolutional Neural Network"
+        #
+        # Instead, we just want to take the frame with a displacement close to nominal displacement (usually 0.3m)
         ref_img, _, previous_pose = sample.get_previous_frame(displacement=args.nominal_displacement)
         inv_rot = torch.from_numpy(previous_pose).to(ref_img)[:, :3].T
         latest_intrinsics = torch.from_numpy(latest_intrinsics).to(ref_img)
