@@ -651,7 +651,7 @@ def validate_with_gt(args, val_loader, depth_net, pose_net, epoch, logger, tb_wr
             prior_img = imgs[:,j]
             displacement = compensated_GT_poses[:, j, :, -1]  # [B,3]
             displacement_magnitude = displacement.norm(p=2, dim=1)  # [B]
-            current_GT_depth = (GT_depth * args.nominal_displacement / displacement_magnitude.view(-1, 1, 1)).clamp(0,args.max_depth)
+            current_GT_depth = (GT_depth * args.nominal_displacement / displacement_magnitude.view(-1, 1, 1))
 
             prior_predicted_pose = compensated_predicted_poses[:, j]  # [B, 3, 4]
             prior_GT_pose = compensated_GT_poses[:, j]
@@ -682,7 +682,7 @@ def validate_with_gt(args, val_loader, depth_net, pose_net, epoch, logger, tb_wr
             for k, depth in enumerate([depth_stab, depth_unstab]):
                 disparity = 1/depth
                 errors = stab_depth_errors if k == 0 else unstab_depth_errors
-                errors.update(compute_depth_errors(current_GT_depth, depth, crop=True, max_depth=101))
+                errors.update(compute_depth_errors(current_GT_depth, depth, crop=True, max_depth=args.max_depth))
                 if log_output:
                     prefix = 'stabilized' if k == 0 else 'unstabilized'
                     tb_writer.add_image('val {} Dispnet Output Normalized {}/{}'.format(prefix, j, i),
